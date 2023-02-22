@@ -1,0 +1,41 @@
+version: 2.1
+
+jobs:
+  lint-dockerfile:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: "Install Hadolint"
+          command: docker pull ghcr.io/hadolint/hadolint
+      - run:
+          name: "Run Hadolint"
+          command: docker run --rm -i ghcr.io/hadolint/hadolint < Dockerfile
+  build-app-karsajobs-ui:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: "Build Image"
+          command: docker build -t karsajobs-ui:latest .
+      - run:
+          name: "Rename Image"
+          command: docker tag karsajobs-ui:latest ghcr.io/ahmadxgani/karsajobs-ui:latest
+      - run:
+          name: "Login GITHUB"
+          command: echo $GITHUB_ACCESS_TOKEN | docker login ghcr.io -u ahmadxgani --password-stdin
+      - run:
+          name: "Push Image"
+          command: docker push ghcr.io/ahmadxgani/karsajobs-ui:latest
+
+workflows:
+  karsajobs-ui-workflow:
+    jobs:
+      - lint-dockerfile
+      - build-app-karsajobs-ui:
+          requires:
+            - lint-dockerfile
