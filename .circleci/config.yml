@@ -1,0 +1,52 @@
+version: 2.1
+
+jobs:
+  lint-dockerfile:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: "Install Hadolint"
+          command: docker pull ghcr.io/hadolint/hadolint
+      - run:
+          name: "Run Hadolint"
+          command: docker run --rm -i ghcr.io/hadolint/hadolint < Dockerfile
+  test-app:
+    docker:
+      - image: cimg/go:1.20.0
+    steps:
+      - checkout
+      - run:
+          name: "Run Test"
+          command: go test -v -short --count=1 $(go list ./...)
+  build-app-karsajobs:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: "Build Image"
+          command: docker build -t karsajobs:latest .
+      - run:
+          name: "Rename Image"
+          command: docker tag karsajobs:latest ghcr.io/ahmadxgani/karsajobs:latest
+      - run:
+          name: "Login GITHUB"
+          command: echo $GITHUB_ACCESS_TOKEN | docker login ghcr.io -u ahmadxgani --password-stdin
+      - run:
+          name: "Push Image"
+          command: docker push ghcr.io/ahmadxgani/karsajobs:latest
+
+workflows:
+  karsajobs-workflow:
+    jobs:
+      - lint-dockerfile
+      - test-app:
+          requires:
+            - lint-dockerfile
+      - build-app-karsajobs:
+          requires:
+            - test-app
